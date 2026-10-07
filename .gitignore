@@ -1,0 +1,31 @@
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Cache de testes
+.pytest_cache/
+.cache/
+
+# Modelos treinados -- regeneráveis via "python main.py",
+# e o random_forest.joblib sozinho passa de 60MB.
+modelos/
+
+# Dados processados -- regenerável a partir de dados/raw/
+# via src/data/cleaner.py
+dados/processed/
+
+# VS Code
+.vscode/
+
+# Streamlit
+.streamlit/
+
+# Sistema
+.DS_Store
+Thumbs.db
