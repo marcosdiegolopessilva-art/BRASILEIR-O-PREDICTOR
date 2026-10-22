@@ -29,3 +29,11 @@ dados/processed/
 # Sistema
 .DS_Store
 Thumbs.db
+.env
+
+dados/*_backup*.db
+dados/*.tmp
+src/data/*_backup.py
+
+dados/*.db
+dados/*.db
