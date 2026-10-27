@@ -102,9 +102,10 @@ class TestCalcularElo:
         assert (df_processado_exemplo["diferenca_elo"] == esperado).all()
 
 
-def test_jogos_no_mesmo_horario_nao_usam_resultados_um_do_outro(df_bruto_exemplo):
+def test_jogos_no_mesmo_dia_nao_usam_resultados_um_do_outro(df_bruto_exemplo):
     df_bruto_exemplo.loc[1, "data"] = df_bruto_exemplo.loc[0, "data"]
-    df_bruto_exemplo.loc[1, "hora"] = df_bruto_exemplo.loc[0, "hora"]
+    df_bruto_exemplo.loc[0, "hora"] = "15:00"
+    df_bruto_exemplo.loc[1, "hora"] = "20:00"
 
     df = limpar_dados(df_bruto_exemplo.copy())
     df = calcular_forma_recente(df)

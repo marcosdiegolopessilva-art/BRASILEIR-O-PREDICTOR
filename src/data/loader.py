@@ -6,6 +6,28 @@ from src.config import CAMINHO_DADOS_RAW
 
 
 TEMPORADA_API = 2026
+ALIASES_TIMES = {
+    "Botafogo FR": "Botafogo-RJ",
+    "CA Mineiro": "Atletico-MG",
+    "CA Paranaense": "Athletico-PR",
+    "CR Flamengo": "Flamengo",
+    "CR Vasco da Gama": "Vasco",
+    "Chapecoense AF": "Chapecoense",
+    "Clube do Remo": "Remo",
+    "Coritiba FBC": "Coritiba",
+    "Cruzeiro EC": "Cruzeiro",
+    "EC Bahia": "Bahia",
+    "EC Vitória": "Vitoria",
+    "Fluminense FC": "Fluminense",
+    "Grêmio FBPA": "Gremio",
+    "Mirassol FC": "Mirassol",
+    "RB Bragantino": "Bragantino",
+    "SC Corinthians Paulista": "Corinthians",
+    "SC Internacional": "Internacional",
+    "SE Palmeiras": "Palmeiras",
+    "Santos FC": "Santos",
+    "São Paulo FC": "Sao Paulo",
+}
 
 
 def _formatar_partidas(partidas, usar_data_utc=False):
@@ -19,13 +41,16 @@ def _formatar_partidas(partidas, usar_data_utc=False):
     else:
         datas = pd.to_datetime(partidas["data"], errors="coerce")
 
+    mandantes = partidas["mandante"].replace(ALIASES_TIMES)
+    visitantes = partidas["visitante"].replace(ALIASES_TIMES)
+
     jogos = pd.DataFrame({
         "ID": None,
         "rodata": partidas["rodada"],
         "data": datas.dt.strftime("%d/%m/%Y"),
         "hora": datas.dt.strftime("%H:%M"),
-        "mandante": partidas["mandante"],
-        "visitante": partidas["visitante"],
+        "mandante": mandantes,
+        "visitante": visitantes,
         "formacao_mandante": "",
         "formacao_visitante": "",
         "tecnico_mandante": "",
@@ -35,8 +60,8 @@ def _formatar_partidas(partidas, usar_data_utc=False):
             else visitante if gols_v > gols_m
             else "-"
             for mandante, visitante, gols_m, gols_v in zip(
-                partidas["mandante"],
-                partidas["visitante"],
+                mandantes,
+                visitantes,
                 partidas["gols_mandante"],
                 partidas["gols_visitante"],
             )

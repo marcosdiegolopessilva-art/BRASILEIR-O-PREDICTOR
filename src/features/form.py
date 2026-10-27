@@ -4,14 +4,15 @@ import pandas as pd
 def _grupos_temporais(df):
     linhas = list(df.itertuples(index=False))
     datas = df["data"].to_numpy()
-    horas = df["hora"].to_numpy()
     inicio = 0
 
     for indice in range(1, len(linhas) + 1):
         mesmo_grupo = (
             indice < len(linhas)
-            and datas[indice] == datas[inicio]
-            and horas[indice] == horas[inicio]
+            and (
+                datas[indice] == datas[inicio]
+                or (pd.isna(datas[indice]) and pd.isna(datas[inicio]))
+            )
         )
         if mesmo_grupo:
             continue

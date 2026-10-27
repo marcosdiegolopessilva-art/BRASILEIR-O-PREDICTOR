@@ -37,7 +37,7 @@ Essas contagens correspondem à execução com 9.062 partidas; a distribuição 
 
 ## 🧠 Engenharia de Atributos
 
-As features de forma, gols, pontos, casa/fora e ELO são calculadas a partir do histórico anterior. Jogos com a mesma data e horário são processados em grupo: os históricos só são atualizados depois de calcular as features de todos os jogos desse grupo.
+As features de forma, gols, pontos, casa/fora e ELO são calculadas a partir do histórico anterior. Todos os jogos da mesma data são processados em grupo: os históricos só são atualizados depois de calcular as features do dia inteiro. Isso evita depender de horários que a fonte de 2026 não fornece.
 
 **Histórico de pontos** — pontos acumulados na temporada corrente, resetados a cada ano.
 
@@ -91,7 +91,7 @@ Acurácia sozinha não mede se as probabilidades são confiáveis. Por isso, a v
 - **Curva de calibração** — compara probabilidades previstas com frequências observadas. O treino atual gera essa análise para vitória do mandante no split único.
 - **Walk-Forward Validation** — `validation.py` testa Baseline, Random Forest e Regressão Logística, usando temporadas anteriores para prever a seguinte. Não inclui Poisson ou Ensemble.
 
-Os valores abaixo são um snapshot de um split temporal único com 9.062 partidas, executado antes da correção que passou a tratar partidas simultâneas em grupo. Eles não são benchmark do código atual. Rode `python main.py` para regenerar métricas após a correção. A validação Walk-Forward não foi executada nessa rodada.
+O split único abaixo foi executado com 9.062 partidas, após a normalização dos nomes dos clubes e o agrupamento dos jogos por data. O Walk-Forward foi executado em 18 temporadas de teste: 2008–2024 e 2026; a base não contém partidas de 2025. Essa validação compara classificadores, não avalia Poisson nem Ensemble.
 
 ---
 
@@ -102,10 +102,22 @@ Os valores abaixo são um snapshot de um split temporal único com 9.062 partida
 | Modelo | Acurácia | Log Loss | Brier Score |
 |---|---:|---:|---:|
 | Baseline | 46,44% | 1,0647 | 0,6430 |
-| Random Forest | 42,69% | 1,0765 | 0,6510 |
-| **Regressão Logística** | **47,77%** | **1,0386** | **0,6243** |
+| Random Forest | 42,53% | 1,0734 | 0,6496 |
+| **Regressão Logística** | **48,04%** | **1,0353** | **0,6222** |
 
 Neste split, a Regressão Logística superou o Baseline em Log Loss e Brier Score; o Random Forest ficou abaixo do Baseline nas três métricas mostradas. Acurácia e métricas probabilísticas medem aspectos diferentes do desempenho.
+
+### Walk-Forward (18 temporadas de teste)
+
+| Configuração | Modelo | Brier médio | Desvio-padrão | Acurácia média |
+|---|---|---:|---:|---:|
+| Referência | Baseline | 0,6314 | 0,0180 | 48,71% |
+| `class_weight="balanced"` | Random Forest | 0,6427 | 0,0154 | 43,70% |
+| `class_weight="balanced"` | Regressão Logística | 0,6584 | 0,0150 | 40,92% |
+| `class_weight=None` | Random Forest | 0,6298 | 0,0207 | 47,48% |
+| `class_weight=None` | Regressão Logística | **0,6154** | 0,0203 | **49,44%** |
+
+Com `class_weight=None`, a Regressão Logística teve o menor Brier médio entre os classificadores avaliados. O Ensemble e o modelo de Poisson não fazem parte deste Walk-Forward; seus desempenhos por temporada não foram medidos.
 
 ---
 
@@ -117,11 +129,11 @@ Exemplo real de saída da interface (os números variam a cada atualização da 
 
 | Resultado | Probabilidade |
 |---|---:|
-| Vitória do Flamengo | 43,19% |
-| Empate | 30,48% |
-| Vitória do Palmeiras | 26,33% |
+| Vitória do Flamengo | 45,60% |
+| Empate | 27,47% |
+| Vitória do Palmeiras | 26,93% |
 
-**Previsão:** Vitória do Flamengo · **Probabilidade do resultado mais provável:** 43,19% (snapshot anterior à correção de partidas simultâneas)
+**Previsão:** Vitória do Flamengo · **Probabilidade do resultado mais provável:** 45,60%
 
 **Gols esperados:** Flamengo 1,46 · Palmeiras 1,07
 
@@ -133,16 +145,17 @@ Exemplo real de saída da interface (os números variam a cada atualização da 
 
 - **Previsão esportiva é probabilística, não determinística.** Um modelo bem calibrado que diz "60% de chance de vitória" está *certo* mesmo quando o time perde — 40% de chance ainda é uma chance real. Nenhuma saída deste sistema deve ser lida como garantia de resultado.
 - **Dados limitados a resultados.** O modelo não inclui transferências, lesões, escalações ou mudanças de técnico. As partidas de 2026 vêm de uma fonte pública separada e só entram no treino depois de terem placar final.
-- **Horário das partidas importadas.** A fonte pública registra data, mas não horário; partidas do mesmo dia são tratadas como simultâneas na geração das features.
+- **Horário das partidas importadas.** A fonte pública registra data, mas não horário; todo o calendário do dia é tratado como simultâneo na geração das features, uma suposição conservadora.
 - **Classes minoritárias são mais difíceis.** O modelo acerta vitórias do mandante com mais frequência do que empates ou vitórias do visitante (F1 Macro em torno de 0,34-0,40) — reflexo direto do desbalanceamento natural do futebol, não um defeito de implementação.
 - **O Poisson assume independência entre os gols dos dois times**, uma simplificação comum em modelos de futebol, mas que não captura efeitos como um time "segurar o resultado" no fim de um jogo já decidido.
-- **Avaliação ainda limitada.** Os resultados publicados são de um split temporal único; não constituem validação atual do Ensemble nem avaliação em apostas reais.
+- **Avaliação ainda limitada.** O Walk-Forward avalia Baseline, Random Forest e Regressão Logística, mas não o Ensemble. Os resultados também não foram avaliados em apostas reais.
+- **Histórico curto para clubes novos na base.** Remo e Mirassol não aparecem no CSV histórico até 2024; para eles, o sistema só dispõe dos jogos de 2026 importados.
 
 ---
 
 ## 🧪 Testes
 
-O projeto tem uma suíte de **63 testes automatizados** (`pytest`), cobrindo:
+O projeto tem uma suíte de **64 testes automatizados** (`pytest`), cobrindo:
 
 - Testes unitários de cada módulo (`loader`, `cleaner`, `features`, `metrics`, `poisson_model`, `monte_carlo`, `train_model`, `predict`)
 - Casos extremos (item 75 do roadmap de desenvolvimento): arquivo de dados não encontrado, time inexistente, time com poucos jogos registrados

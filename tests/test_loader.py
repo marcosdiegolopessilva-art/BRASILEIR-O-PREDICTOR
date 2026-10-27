@@ -32,3 +32,19 @@ class TestCarregarDados:
 
         assert list(df.columns) == ["a", "b"]
         assert len(df) == 2
+
+    def test_normaliza_nomes_de_times_da_fonte_2026(self):
+        partidas = pd.DataFrame({
+            "data": ["2026-03-01"] * len(loader.ALIASES_TIMES),
+            "rodada": ["1ª rodada"] * len(loader.ALIASES_TIMES),
+            "mandante": list(loader.ALIASES_TIMES),
+            "visitante": ["Adversário"] * len(loader.ALIASES_TIMES),
+            "gols_mandante": [1] * len(loader.ALIASES_TIMES),
+            "gols_visitante": [0] * len(loader.ALIASES_TIMES),
+        })
+
+        resultado = loader._formatar_partidas(partidas)
+
+        assert resultado["mandante"].tolist() == list(
+            loader.ALIASES_TIMES.values()
+        )
