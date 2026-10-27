@@ -3,6 +3,25 @@ import pandas as pd
 from src.config import CAMINHO_DADOS_PROCESSED
 
 
+def _grupos_temporais(df):
+    linhas = list(df.itertuples(index=False))
+    datas = df["data"].to_numpy()
+    horas = df["hora"].to_numpy()
+    inicio = 0
+
+    for indice in range(1, len(linhas) + 1):
+        mesmo_grupo = (
+            indice < len(linhas)
+            and datas[indice] == datas[inicio]
+            and horas[indice] == horas[inicio]
+        )
+        if mesmo_grupo:
+            continue
+
+        yield linhas[inicio:indice]
+        inicio = indice
+
+
 def limpar_dados(df):
 
     print("\nIniciando limpeza da base...")
@@ -83,37 +102,39 @@ def limpar_dados(df):
     pontos_visitante = []
     ano_atual = None
 
-    for jogo in df.itertuples(index=False):
-
-        if jogo.ano != ano_atual:
+    for grupo in _grupos_temporais(df):
+        ano_jogo = grupo[0].ano
+        if ano_jogo != ano_atual:
             pontos_times = {}
-            ano_atual = jogo.ano
+            ano_atual = ano_jogo
 
-        mandante = jogo.mandante
-        visitante = jogo.visitante
+        for jogo in grupo:
+            pontos_mandante.append(
+                pontos_times.get(jogo.mandante, 0)
+            )
+            pontos_visitante.append(
+                pontos_times.get(jogo.visitante, 0)
+            )
 
-        pontos_mandante.append(
-            pontos_times.get(mandante, 0)
-        )
-        pontos_visitante.append(
-            pontos_times.get(visitante, 0)
-        )
+        for jogo in grupo:
+            mandante = jogo.mandante
+            visitante = jogo.visitante
 
-        if jogo.resultado == "Mandante":
-            pontos_times[mandante] = (
-                pontos_times.get(mandante, 0) + 3
-            )
-        elif jogo.resultado == "Visitante":
-            pontos_times[visitante] = (
-                pontos_times.get(visitante, 0) + 3
-            )
-        else:
-            pontos_times[mandante] = (
-                pontos_times.get(mandante, 0) + 1
-            )
-            pontos_times[visitante] = (
-                pontos_times.get(visitante, 0) + 1
-            )
+            if jogo.resultado == "Mandante":
+                pontos_times[mandante] = (
+                    pontos_times.get(mandante, 0) + 3
+                )
+            elif jogo.resultado == "Visitante":
+                pontos_times[visitante] = (
+                    pontos_times.get(visitante, 0) + 3
+                )
+            else:
+                pontos_times[mandante] = (
+                    pontos_times.get(mandante, 0) + 1
+                )
+                pontos_times[visitante] = (
+                    pontos_times.get(visitante, 0) + 1
+                )
 
     df["pontos_mandante_antes"] = pontos_mandante
     df["pontos_visitante_antes"] = pontos_visitante

@@ -63,8 +63,7 @@ def main():
     st.caption(
         "Previsão probabilística de partidas do Campeonato "
         "Brasileiro, combinando Regressão Logística e Poisson "
-        "(Ensemble validado no Walk-Forward -- ver "
-        "src/models/hybrid.py)."
+        "em uma média das probabilidades dos dois modelos."
     )
 
     df = preparar_dados()

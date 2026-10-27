@@ -1,6 +1,25 @@
 import pandas as pd
 
 
+def _grupos_temporais(df):
+    linhas = list(df.itertuples(index=False))
+    datas = df["data"].to_numpy()
+    horas = df["hora"].to_numpy()
+    inicio = 0
+
+    for indice in range(1, len(linhas) + 1):
+        mesmo_grupo = (
+            indice < len(linhas)
+            and datas[indice] == datas[inicio]
+            and horas[indice] == horas[inicio]
+        )
+        if mesmo_grupo:
+            continue
+
+        yield linhas[inicio:indice]
+        inicio = indice
+
+
 def calcular_forma_recente(df, ultimos_jogos=5):
     print("\nCalculando forma recente dos times...")
 
@@ -20,40 +39,32 @@ def calcular_forma_recente(df, ultimos_jogos=5):
     derrotas_visitante = []
 
     # Percorre cada partida
-    for jogo in df.itertuples(index=False):
-        mandante = jogo.mandante
-        visitante = jogo.visitante
+    for grupo in _grupos_temporais(df):
+        for jogo in grupo:
+            mandante = jogo.mandante
+            visitante = jogo.visitante
+            ultimos_m = historico_times.get(mandante, [])[-ultimos_jogos:]
+            ultimos_v = historico_times.get(visitante, [])[-ultimos_jogos:]
 
-        # Histórico anterior do mandante
-        historico_m = historico_times.get(mandante, [])
+            vitorias_mandante.append(ultimos_m.count("V"))
+            empates_mandante.append(ultimos_m.count("E"))
+            derrotas_mandante.append(ultimos_m.count("D"))
+            vitorias_visitante.append(ultimos_v.count("V"))
+            empates_visitante.append(ultimos_v.count("E"))
+            derrotas_visitante.append(ultimos_v.count("D"))
 
-        # Histórico anterior do visitante
-        historico_v = historico_times.get(visitante, [])
-
-        # Considera somente os últimos jogos
-        ultimos_m = historico_m[-ultimos_jogos:]
-        ultimos_v = historico_v[-ultimos_jogos:]
-
-        # Calcula a forma do mandante
-        vitorias_mandante.append(ultimos_m.count("V"))
-        empates_mandante.append(ultimos_m.count("E"))
-        derrotas_mandante.append(ultimos_m.count("D"))
-
-        # Calcula a forma do visitante
-        vitorias_visitante.append(ultimos_v.count("V"))
-        empates_visitante.append(ultimos_v.count("E"))
-        derrotas_visitante.append(ultimos_v.count("D"))
-
-        # Atualiza o histórico depois da partida
-        if jogo.resultado == "Mandante":
-            historico_times.setdefault(mandante, []).append("V")
-            historico_times.setdefault(visitante, []).append("D")
-        elif jogo.resultado == "Visitante":
-            historico_times.setdefault(mandante, []).append("D")
-            historico_times.setdefault(visitante, []).append("V")
-        else:
-            historico_times.setdefault(mandante, []).append("E")
-            historico_times.setdefault(visitante, []).append("E")
+        for jogo in grupo:
+            mandante = jogo.mandante
+            visitante = jogo.visitante
+            if jogo.resultado == "Mandante":
+                historico_times.setdefault(mandante, []).append("V")
+                historico_times.setdefault(visitante, []).append("D")
+            elif jogo.resultado == "Visitante":
+                historico_times.setdefault(mandante, []).append("D")
+                historico_times.setdefault(visitante, []).append("V")
+            else:
+                historico_times.setdefault(mandante, []).append("E")
+                historico_times.setdefault(visitante, []).append("E")
 
     # Adiciona as features ao DataFrame
     df["vitorias_recentes_mandante"] = vitorias_mandante
@@ -88,50 +99,35 @@ def calcular_media_gols(df, ultimos_jogos=5):
     media_gols_sofridos_visitante = []
 
     # Percorre as partidas na ordem cronológica
-    for jogo in df.itertuples(index=False):
-        mandante = jogo.mandante
-        visitante = jogo.visitante
+    for grupo in _grupos_temporais(df):
+        for jogo in grupo:
+            ultimos_m = historico_gols.get(jogo.mandante, [])[-ultimos_jogos:]
+            ultimos_v = historico_gols.get(jogo.visitante, [])[-ultimos_jogos:]
 
-        # Histórico anterior do mandante
-        historico_m = historico_gols.get(mandante, [])
+            media_gols_marcados_mandante.append(
+                sum(gols[0] for gols in ultimos_m) / len(ultimos_m)
+                if ultimos_m else 0
+            )
+            media_gols_sofridos_mandante.append(
+                sum(gols[1] for gols in ultimos_m) / len(ultimos_m)
+                if ultimos_m else 0
+            )
+            media_gols_marcados_visitante.append(
+                sum(gols[0] for gols in ultimos_v) / len(ultimos_v)
+                if ultimos_v else 0
+            )
+            media_gols_sofridos_visitante.append(
+                sum(gols[1] for gols in ultimos_v) / len(ultimos_v)
+                if ultimos_v else 0
+            )
 
-        # Histórico anterior do visitante
-        historico_v = historico_gols.get(visitante, [])
-
-        # Considera somente os últimos jogos
-        ultimos_m = historico_m[-ultimos_jogos:]
-        ultimos_v = historico_v[-ultimos_jogos:]
-
-        # Média de gols do mandante
-        if ultimos_m:
-            media_marcados_m = sum(j[0] for j in ultimos_m) / len(ultimos_m)
-            media_sofridos_m = sum(j[1] for j in ultimos_m) / len(ultimos_m)
-        else:
-            media_marcados_m = 0
-            media_sofridos_m = 0
-
-        # Média de gols do visitante
-        if ultimos_v:
-            media_marcados_v = sum(j[0] for j in ultimos_v) / len(ultimos_v)
-            media_sofridos_v = sum(j[1] for j in ultimos_v) / len(ultimos_v)
-        else:
-            media_marcados_v = 0
-            media_sofridos_v = 0
-
-        # Guarda os resultados
-        media_gols_marcados_mandante.append(media_marcados_m)
-        media_gols_sofridos_mandante.append(media_sofridos_m)
-
-        media_gols_marcados_visitante.append(media_marcados_v)
-        media_gols_sofridos_visitante.append(media_sofridos_v)
-
-        # Atualiza o histórico depois da partida
-        historico_gols.setdefault(mandante, []).append(
-            (jogo.mandante_Placar, jogo.visitante_Placar)
-        )
-        historico_gols.setdefault(visitante, []).append(
-            (jogo.visitante_Placar, jogo.mandante_Placar)
-        )
+        for jogo in grupo:
+            historico_gols.setdefault(jogo.mandante, []).append(
+                (jogo.mandante_Placar, jogo.visitante_Placar)
+            )
+            historico_gols.setdefault(jogo.visitante, []).append(
+                (jogo.visitante_Placar, jogo.mandante_Placar)
+            )
 
     # Adiciona as novas features fora do loop
     df["media_gols_marcados_mandante"] = media_gols_marcados_mandante
@@ -163,62 +159,34 @@ def calcular_desempenho_casa_fora(df):
     empates_fora = []
     derrotas_fora = []
 
-    for jogo in df.itertuples(index=False):
-        mandante = jogo.mandante
-        visitante = jogo.visitante
+    for grupo in _grupos_temporais(df):
+        for jogo in grupo:
+            casa = desempenho_casa.get(jogo.mandante, {"V": 0, "E": 0, "D": 0})
+            fora = desempenho_fora.get(jogo.visitante, {"V": 0, "E": 0, "D": 0})
+            vitorias_casa.append(casa["V"])
+            empates_casa.append(casa["E"])
+            derrotas_casa.append(casa["D"])
+            vitorias_fora.append(fora["V"])
+            empates_fora.append(fora["E"])
+            derrotas_fora.append(fora["D"])
 
-        casa = desempenho_casa.get(
-            mandante,
-            {"V": 0, "E": 0, "D": 0}
-        )
+        for jogo in grupo:
+            casa = desempenho_casa.setdefault(
+                jogo.mandante, {"V": 0, "E": 0, "D": 0}
+            )
+            fora = desempenho_fora.setdefault(
+                jogo.visitante, {"V": 0, "E": 0, "D": 0}
+            )
 
-        fora = desempenho_fora.get(
-            visitante,
-            {"V": 0, "E": 0, "D": 0}
-        )
-
-        # Guarda histórico antes da partida
-        vitorias_casa.append(casa["V"])
-        empates_casa.append(casa["E"])
-        derrotas_casa.append(casa["D"])
-
-        vitorias_fora.append(fora["V"])
-        empates_fora.append(fora["E"])
-        derrotas_fora.append(fora["D"])
-
-        # Atualiza após o jogo
-        if jogo.resultado == "Mandante":
-            desempenho_casa.setdefault(
-                mandante,
-                {"V": 0, "E": 0, "D": 0}
-            )["V"] += 1
-
-            desempenho_fora.setdefault(
-                visitante,
-                {"V": 0, "E": 0, "D": 0}
-            )["D"] += 1
-
-        elif jogo.resultado == "Visitante":
-            desempenho_casa.setdefault(
-                mandante,
-                {"V": 0, "E": 0, "D": 0}
-            )["D"] += 1
-
-            desempenho_fora.setdefault(
-                visitante,
-                {"V": 0, "E": 0, "D": 0}
-            )["V"] += 1
-
-        else:
-            desempenho_casa.setdefault(
-                mandante,
-                {"V": 0, "E": 0, "D": 0}
-            )["E"] += 1
-
-            desempenho_fora.setdefault(
-                visitante,
-                {"V": 0, "E": 0, "D": 0}
-            )["E"] += 1
+            if jogo.resultado == "Mandante":
+                casa["V"] += 1
+                fora["D"] += 1
+            elif jogo.resultado == "Visitante":
+                casa["D"] += 1
+                fora["V"] += 1
+            else:
+                casa["E"] += 1
+                fora["E"] += 1
 
     df["vitorias_casa"] = vitorias_casa
     df["empates_casa"] = empates_casa
@@ -242,32 +210,31 @@ def calcular_elo(df, k=20, elo_inicial=1500):
     # Garante a ordem cronológica
     df = df.sort_values(["data", "hora", "ID"]).copy()
 
-    for jogo in df.itertuples(index=False):
-        mandante = jogo.mandante
-        visitante = jogo.visitante
+    for grupo in _grupos_temporais(df):
+        ajustes_elo = {}
 
-        # ELO dos times ANTES da partida
-        elo_m = elos.get(mandante, elo_inicial)
-        elo_v = elos.get(visitante, elo_inicial)
+        for jogo in grupo:
+            mandante = jogo.mandante
+            visitante = jogo.visitante
+            elo_m = elos.get(mandante, elo_inicial)
+            elo_v = elos.get(visitante, elo_inicial)
+            elo_mandante_antes.append(elo_m)
+            elo_visitante_antes.append(elo_v)
 
-        elo_mandante_antes.append(elo_m)
-        elo_visitante_antes.append(elo_v)
+            exp_m = 1 / (1 + 10 ** ((elo_v - elo_m) / 400))
+            exp_v = 1 - exp_m
+            if jogo.resultado == "Mandante":
+                res_m, res_v = 1.0, 0.0
+            elif jogo.resultado == "Visitante":
+                res_m, res_v = 0.0, 1.0
+            else:
+                res_m, res_v = 0.5, 0.5
 
-        # Probabilidade esperada
-        exp_m = 1 / (1 + 10 ** ((elo_v - elo_m) / 400))
-        exp_v = 1 - exp_m
+            ajustes_elo[mandante] = ajustes_elo.get(mandante, 0) + k * (res_m - exp_m)
+            ajustes_elo[visitante] = ajustes_elo.get(visitante, 0) + k * (res_v - exp_v)
 
-        # Resultado real do confronto
-        if jogo.resultado == "Mandante":
-            res_m, res_v = 1.0, 0.0
-        elif jogo.resultado == "Visitante":
-            res_m, res_v = 0.0, 1.0
-        else:
-            res_m, res_v = 0.5, 0.5
-
-        # Atualiza o histórico para o próximo jogo
-        elos[mandante] = elo_m + k * (res_m - exp_m)
-        elos[visitante] = elo_v + k * (res_v - exp_v)
+        for time, ajuste in ajustes_elo.items():
+            elos[time] = elos.get(time, elo_inicial) + ajuste
 
     # 1. Atribui as colunas de ELO antes do jogo
     df["elo_mandante_antes"] = elo_mandante_antes

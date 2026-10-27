@@ -100,3 +100,22 @@ class TestCalcularElo:
             - df_processado_exemplo["elo_visitante_antes"]
         )
         assert (df_processado_exemplo["diferenca_elo"] == esperado).all()
+
+
+def test_jogos_no_mesmo_horario_nao_usam_resultados_um_do_outro(df_bruto_exemplo):
+    df_bruto_exemplo.loc[1, "data"] = df_bruto_exemplo.loc[0, "data"]
+    df_bruto_exemplo.loc[1, "hora"] = df_bruto_exemplo.loc[0, "hora"]
+
+    df = limpar_dados(df_bruto_exemplo.copy())
+    df = calcular_forma_recente(df)
+    df = calcular_media_gols(df)
+    df = calcular_desempenho_casa_fora(df)
+    df = calcular_elo(df)
+
+    segundo_jogo_simultaneo = df.loc[df["ID"] == 2].iloc[0]
+
+    assert segundo_jogo_simultaneo["pontos_mandante_antes"] == 0
+    assert segundo_jogo_simultaneo["vitorias_recentes_mandante"] == 0
+    assert segundo_jogo_simultaneo["media_gols_marcados_mandante"] == 0
+    assert segundo_jogo_simultaneo["vitorias_casa"] == 0
+    assert segundo_jogo_simultaneo["elo_mandante_antes"] == 1500
