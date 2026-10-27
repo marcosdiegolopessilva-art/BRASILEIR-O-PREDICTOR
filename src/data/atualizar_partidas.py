@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 RAIZ_PROJETO = Path(__file__).resolve().parents[2]
 DB_PATH = RAIZ_PROJETO / "dados" / "brasileirao.db"
+TEMPORADA = 2026
 
 load_dotenv(RAIZ_PROJETO / ".env")
 API_KEY = os.getenv("API_FOOTBALL_KEY")
@@ -18,7 +19,7 @@ def atualizar_partidas_recentes():
 
     url = "https://v3.football.api-sports.io/fixtures"
     headers = {"x-apisports-key": API_KEY}
-    params = {"league": 71, "season": 2024}
+    params = {"league": 71, "season": TEMPORADA}
 
     try:
         resposta = requests.get(
@@ -75,7 +76,7 @@ def atualizar_partidas_recentes():
                     gols["home"],
                     gols["away"],
                     fixture["status"]["short"],
-                    2026
+                    TEMPORADA
                 ))
 
         print(f"Atualização concluída: {len(partidas)} partidas processadas.")
